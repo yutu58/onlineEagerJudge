@@ -43,6 +43,8 @@ setTimeout(function() {
                             beepDelayValueDisplay.textContent = displayValue;
                         });
 
+                        // check();
+
                         // monitorTimer();
                         monitorTimer2();
                     }
@@ -71,7 +73,7 @@ setTimeout(function() {
                             if (currentTime >= beepValue && beepValue !== 0.0 && !alreadyBeeped) {
                                 playBeep();
                                 alreadyBeeped = true;
-                                console.log("Target time reached:", beepValue, "seconds!");
+                                console.log("Target time reached:", beepValue, "milliseconds!");
                                 // Trigger your action here
                             } else if (alreadyBeeped && currentTime === 0) {
                                 alreadyBeeped = false;
@@ -100,8 +102,12 @@ let cbuff = 0
 let ebuff = 1
 let order = '012345670123456789ab'
 
-function getAlgCount() {
+function getAlgCount(test) {
     let state = cubeutil.getScrambledState(tools.getCurScramble());
+
+    if (test) {
+        state = cubeutil.getScrambledState(['333ni', test, 0])
+    }
 
     //TODO: Add custom buffers
     let bldCode = getBLDcode(state, scheme, cbuff, ebuff, order)
@@ -109,7 +115,7 @@ function getAlgCount() {
     let edges = bldCode[1]
     let cCount = corners.filter(entry => entry !== " ").length;
     let eCount = edges.filter(entry => entry !== " ").length;
-    let totalAlgCount = (cCount + eCount) / 2
+    let totalAlgCount = Math.ceil((cCount + eCount) / 2)
 
     //Account for corner twists
     let tcCount = 0;
@@ -166,6 +172,7 @@ function getAlgCount() {
 
     totalAlgCount += Math.ceil(feCount / 4)
 
+    // console.log(totalAlgCount)
     return totalAlgCount
 }
 
@@ -184,17 +191,12 @@ function getBLDcode(c, scheme, cbuf, ebuf, order) {
         corns[i] = scheme.slice(i * 4, i * 4 + 3);
         corders[i] = parseInt(order[i], 24);
     }
-    var edges = [];
-    var eorders = [];
-    for (var i = 0; i < 12; i++) {
-        edges[i] = scheme.slice(32 + i * 3, 32 + i * 3 + 2);
-        eorders[i] = parseInt(order[i + 8], 24);
-    }
 
     var ccode = [];
     var ecode = [];
     var cc = new mathlib.CubieCube();
     cc.init(c.ca, c.ea);
+
 
     var done = 1 << cbuf;
     for (var i = 0; i < 8; i++) {
@@ -223,6 +225,55 @@ function getBLDcode(c, scheme, cbuf, ebuf, order) {
         done |= 1 << target;
     }
 
+
+    var ret = [[], []];
+    for (var i = 0; i < ccode.length; i++) {
+        var val = ccode[i] & 0x7;
+        var ori = (6 - (ccode[i] >> 3) + cori) % 3;
+        ori ^= (0xa5 >> val & 0x1) * 3;
+        ret[0].push(corns[val].charAt(ori % 3));
+        if (i % 2 == 1) {
+            ret[0].push(' ');
+        }
+    }
+
+    //Edges
+    var edges = [];
+    var eorders = [];
+    for (var i = 0; i < 12; i++) {
+        edges[i] = scheme.slice(32 + i * 3, 32 + i * 3 + 2);
+        eorders[i] = parseInt(order[i + 8], 24);
+    }
+
+    //Do PseudoSwap
+    if (ret[0][ret[0].length - 1] !== ' ') {
+        let [firstIndex, secondIndex] = [-1, -1];
+        let [isMissFirst, isMissSecond] = [false, false];
+
+        cc.ea.forEach((val, i) => {
+            if (val / 2 < 2) {
+                if (firstIndex === -1) {
+                    if (val % 2 === 1) {
+                        cc.ea[i]--;
+                        isMissFirst = true;
+                    }
+                    firstIndex = i;
+                } else if (secondIndex === -1) {
+                    if (val % 2 === 1) {
+                        cc.ea[i]--;
+                        isMissSecond = true;
+                    }
+                    secondIndex = i;
+                }
+            }
+        });
+
+        [cc.ea[firstIndex], cc.ea[secondIndex]] = [cc.ea[secondIndex], cc.ea[firstIndex]];
+
+        if (isMissFirst) cc.ea[firstIndex]++;
+        if (isMissSecond) cc.ea[secondIndex]++;
+    }
+
     done = 1 << ebuf;
     for (var i = 0; i < 12; i++) {
         if (cc.ea[i] == i * 2) {
@@ -248,16 +299,7 @@ function getBLDcode(c, scheme, cbuf, ebuf, order) {
         cc.ea[target] = target << 1;
         done |= 1 << target;
     }
-    var ret = [[], []];
-    for (var i = 0; i < ccode.length; i++) {
-        var val = ccode[i] & 0x7;
-        var ori = (6 - (ccode[i] >> 3) + cori) % 3;
-        ori ^= (0xa5 >> val & 0x1) * 3;
-        ret[0].push(corns[val].charAt(ori % 3));
-        if (i % 2 == 1) {
-            ret[0].push(' ');
-        }
-    }
+
     for (var i = 0; i < ecode.length; i++) {
         var val = ecode[i] ^ eori;
         ret[1].push(edges[val >> 1].charAt(val & 1));
@@ -265,5 +307,24 @@ function getBLDcode(c, scheme, cbuf, ebuf, order) {
             ret[1].push(' ');
         }
     }
+
     return ret;
 }
+
+function check() {
+    let arr = checkAlgs.split("\n")
+    let count = 0;
+    let total = 0;
+
+    for (let i = 0; i < arr.length; i++) {
+        count++
+
+        let scramble = arr[i].split(". ")[1]
+        total += getAlgCount(scramble)
+
+    }
+    console.log(count)
+    console.log(total / count)
+}
+
+let checkAlgs = ``
