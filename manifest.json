@@ -1,0 +1,26 @@
+{
+  "name": "Online Eager Judge",
+  "version": "1.0.1",
+  "manifest_version": 3,
+  "description": "Adds Eager Judge tool that beeps after x seconds",
+  "author": "yutu58",
+  "content_scripts": [
+    {
+      "matches": ["https://*.cstimer.net/*"],
+      "js": ["contentscript.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "permissions": [
+    "storage"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["script2.js"],
+      "matches": ["https://*.cstimer.net/*"]
+    }
+  ]
+}
